@@ -203,7 +203,7 @@ echo -e "${blue}[!]${NC} Generating domain names"
 
 if [ "$include_unresolved_subs" == true ]; then
     cat results/$domain/subdomains.txt results/$domain/resolved1.txt | sort -u > results/$domain/dnsgen_input.txt
-else:
+else
     mv results/$domain/resolved1.txt results/$domain/dnsgen_input.txt
 fi
 
