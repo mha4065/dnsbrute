@@ -203,9 +203,9 @@ echo -e "${blue}[!]${NC} Generating domain names"
 
 if [ "$include_unresolved_subs" == true ]; then
     cat results/$domain/subdomains.txt results/$domain/resolved1.txt | sort -u > results/$domain/dnsgen_input.txt
+else:
+    mv results/$domain/resolved1.txt results/$domain/dnsgen_input.txt
 fi
-
-mv results/$domain/resolved1.txt results/$domain/dnsgen_input.txt
 
 echo -e "   ${green}[+]${NC} DNSGen"
 cat results/$domain/dnsgen_input.txt | dnsgen -w results/$domain/words.txt - | shuffledns -d $domain -r resolvers.txt -silent > results/$domain/resolved2.txt
