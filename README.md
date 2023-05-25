@@ -12,7 +12,7 @@ dnsbrute is a powerful tool to brute force DNS and obtain hidden subdomains of a
   1. Add your providers token to this file: `$HOME/.config/subfinder/provider-config.yaml`
   2. Add your github token to top of `dnsbrute.sh` file, in `token`
   3. Run `chmod +x dnsbrute.sh`
-  4. `./dnsbrute.sh -d domain.tld [-s subdomain.txt] [-i]`
+  4. `./dnsbrute.sh -d domain.tld [-s subdomain.txt] [-i] [-m massdns binary]`
 
 Note: If you have a list of subdomains, you can give your subdomains file to the tool with `-s`. Also, if your target has a small scope, I recommend to use `-i` so that after the initial name resolution by ShuffleDNS, the unresolved subdomains are also given as input to DNSGen.
 
