@@ -1,9 +1,5 @@
 #!/bin/bash
 
-
-token="Your Github Token"
-
-
 red='\033[0;31m'
 green='\033[0;32m'
 yellow='\033[0;33m'
@@ -13,41 +9,41 @@ cyan='\033[0;36m'
 NC='\033[0m'
 
 
-printf "
-      _           _                _         
-   __| |_ __  ___| |__  _ __ _   _| |_ ___   
-  / _\` | '_ \/ __| '_ \| '__| | | | __/ _ \  
- | (_| | | | \__ \ |_) | |  | |_| | ||  __/  
-  \__,_|_| |_|___/_.__/|_|   \__,_|\__\___|  
-                                             
-              ${cyan}Developed by MHA${NC}             
-                 ${yellow}mha4065.com${NC}                 
+usage() { echo "Usage: ./dnsbrute.sh -d domain.tld [-c subdomain.txt] [-i] [-r resolvers.txt] [-s] [-o output.txt]" 1>&2; exit 1; }
 
-
-"
-
-usage() { echo "Usage: ./dnsbrute.sh -d domain.tld [-s subdomain.txt] [-i] [-m massdnsbinary]" 1>&2; exit 1; }
-
-massdns=""
-
-while getopts "d:s:i:m:" flag
+while getopts "d:c:r:o:si" flag
 do
     case "${flag}" in
-        m) massdns="-m $OPTARG";;
         d) domain=${OPTARG#*//};;
-        s) subdomain="$OPTARG";;
+        c) subdomain="$OPTARG";;
         i) include_unresolved_subs=true;;
+        r) resolvers="$OPTARG";;
+        o) output="$OPTARG";;
+        s) silent=true;;
         \? ) usage;;
         : ) usage;;
-		*) usage;;
+	*) usage;;
     esac
 done
-
 
 if [[ -z "${domain}" ]]; then
   usage
 fi
 
+if [[ -z "${silent}" ]]; then
+	printf "
+	      _           _                _         
+	   __| |_ __  ___| |__  _ __ _   _| |_ ___   
+	  / _\` | '_ \/ __| '_ \| '__| | | | __/ _ \  
+	 | (_| | | | \__ \ |_) | |  | |_| | ||  __/  
+	  \__,_|_| |_|___/_.__/|_|   \__,_|\__\___|  
+		                                     
+		      ${cyan}Developed by MHA${NC}             
+		         ${yellow}mha4065.com${NC}                 
+
+
+	"
+fi
 
 # Check results/domain is exist or not
 #=======================================================================
@@ -57,17 +53,16 @@ fi
 if [ ! -d "results/$domain" ]; then
     mkdir "results/$domain"
 fi
-if [ ! -d "results/$domain/dnsbrute" ]; then
-    mkdir "results/$domain/dnsbrute"
-fi
 #=======================================================================
 
 
 
 # Check the requirements
 #=======================================================================
-echo
-echo -e "${blue}[!]${NC} Check the requirements :"
+if [[ -z "${silent}" ]]; then
+	echo
+	echo -e "${blue}[!]${NC} Check the requirements :"
+fi
 
 if ! command -v subfinder &> /dev/null
 then
@@ -75,15 +70,9 @@ then
     exit
 fi
 
-if ! command -v assetfinder &> /dev/null
+if ! command -v anew &> /dev/null
 then
-    echo -e "   ${red}[-]${NC} assetfinder could not be found !"
-    exit
-fi
-
-if ! command -v github-subdomains &> /dev/null
-then
-    echo -e "   ${red}[-]${NC} github-subdomains could not be found !"
+    echo -e "   ${red}[-]${NC} Anew could not be found !"
     exit
 fi
 
@@ -105,131 +94,178 @@ then
     exit
 fi
 
-echo -e "   ${green}[+]${NC} All requirements are installed :)"
+if [[ -z "${silent}" ]]; then
+	echo -e "   ${green}[+]${NC} All requirements are installed :)"
+fi
 #=======================================================================
 
 
 # Check that anysubdomain is resolved to an A record or not
 #=======================================================================
-echo
-echo -e "${blue}[!]${NC} Checking ${magenta}vampireishere${NC} as a subdomain for ${cyan}$domain${NC} ..."
+if [[ -z "${silent}" ]]; then
+	echo
+	echo -e "${blue}[!]${NC} Checking ${magenta}vampireishere${NC} as a subdomain for ${cyan}$domain${NC} ..."
+fi
 
 if dig +short "vampireishere.${domain}" A | grep -q "^[0-9]\+\.[0-9]\+\.[0-9]\+\.[0-9]\+$"; then
     echo -e "   ${red}[-]${NC} The $domain resolved to an IP with this subdomain: ${red}vampireishere${NC} :("
     exit
 else
-    echo -e "   ${green}[+]${NC} No A record found :)"
+    if [[ -z "${silent}" ]]; then
+        echo -e "   ${green}[+]${NC} No A record found :)"
+    fi
 fi
 #=======================================================================
 
 
 # Donwload and prepare wordlist
 #=======================================================================
-echo
-echo -e "${blue}[!]${NC} Download and prepare wordlist"
-curl -s https://wordlists-cdn.assetnote.io/data/manual/best-dns-wordlist.txt > results/$domain/dnsbrute/best-dns-wordlist.txt
-curl -s https://wordlists-cdn.assetnote.io/data/manual/2m-subdomains.txt > results/$domain/dnsbrute/2m-subdomains.txt
-cat results/$domain/dnsbrute/best-dns-wordlist.txt results/$domain/dnsbrute/2m-subdomains.txt crunch.txt | sort -u > results/$domain/dnsbrute/wordlist.txt
-rm results/$domain/dnsbrute/best-dns-wordlist.txt results/$domain/dnsbrute/2m-subdomains.txt
+if [[ -z "${silent}" ]]; then
+	echo
+	echo -e "${blue}[!]${NC} Download and prepare wordlist"
+fi
+curl -s https://wordlists-cdn.assetnote.io/data/manual/best-dns-wordlist.txt > results/$domain/best-dns-wordlist.txt
+curl -s https://wordlists-cdn.assetnote.io/data/manual/2m-subdomains.txt > results/$domain/2m-subdomains.txt
+cat results/$domain/best-dns-wordlist.txt results/$domain/2m-subdomains.txt crunch.txt | sort -u > results/$domain/wordlist.txt
+rm results/$domain/best-dns-wordlist.txt results/$domain/2m-subdomains.txt
 #=======================================================================
 
 
 # Subdomain enumeration
 #=======================================================================
-function sub_enumeration() {
-    echo
-    echo -e "${blue}[!]${NC} Subdomain enumeration :"
+function subdomain_enum() {
+	if [[ -z "${silent}" ]]; then
+	    echo
+	    echo -e "${blue}[!]${NC} Subdomain enumeration :"
+	fi
 
-    # Subfinder ==========================
-    echo -e "   ${green}[+]${NC} Subfinder"
-    subfinder -d $domain -all -silent > results/$domain/dnsbrute/subfinder.txt
+	# Subfinder ==========================
+	if [[ -z "${silent}" ]]; then
+		echo -e "   ${green}[+]${NC} Subfinder"
+	fi
+	subfinder -d $domain -all -silent > results/$domain/subfinder.txt
 
-    # Assetfinder ========================
-    echo -e "   ${green}[+]${NC} Assetfinder"
-    assetfinder --subs-only $domain > results/$domain/dnsbrute/assetfinder.txt
+	# Crt.sh =============================
+	if [[ -z "${silent}" ]]; then
+	    echo -e "   ${green}[+]${NC} crt.sh"
+	fi
+	query=$(cat <<-END
+		SELECT
+			ci.NAME_VALUE
+		FROM
+			certificate_and_identities ci
+		WHERE
+			plainto_tsquery('certwatch', '$domain') @@ identities(ci.CERTIFICATE)
+		END
+	)
+	echo "$query" | psql -t -h crt.sh -p 5432 -U guest certwatch | sed 's/ //g' | grep -E ".*.\.$domain" | sed 's/*\.//g' | tr '[:upper:]' '[:lower:]' | sort -u | tee -a results/$domain/crtsh.txt &> /dev/null
 
-    # Crt.sh =============================
-    echo -e "   ${green}[+]${NC} crt.sh"
-    curl -s "https://crt.sh/?q=$domain&output=json" | tr '\0' '\n' | jq -r ".[].common_name,.[].name_value" | sort -u > results/$domain/dnsbrute/crtsh.txt
+	# Github subdomains ==================
+	if [[ -z "${silent}" ]]; then
+	    echo -e "   ${green}[+]${NC} Github"
+	fi
+	q=$(echo $domain | sed -e 's/\./\\\./g')
+	src search -json '([a-z\-]+)?:?(\/\/)?([a-zA-Z0-9]+[.])+('${q}') count:5000 fork:yes archived:yes' | jq -r '.Results[] | .lineMatches[].preview, .file.path' | grep -oiE '([a-zA-Z0-9]+[.])+('${q}')' | awk '{ print tolower($0) }' | sort -u > results/$domain/github.txt
 
-    # AbuseDB ============================
-    echo -e "   ${green}[+]${NC} AbuseDB"
-    curl -s "https://www.abuseipdb.com/whois/$domain" -H "User-Agent: Chrome" | grep -E '<li>\w.*</li>' | sed -E 's/<\/?li>//g' | sed -e "s/$/.$domain/" > results/$domain/dnsbrute/abusedb.txt
+	# Remove duplicates
+	cat results/$domain/subfinder.txt results/$domain/crtsh.txt results/$domain/github.txt | sort -u > results/$domain/subdomains.txt
+	rm results/$domain/subfinder.txt results/$domain/crtsh.txt results/$domain/github.txt
 
-    # Github subdomains ==================
-    echo -e "   ${green}[+]${NC} Github"
-    github-subdomains -d $domain -e -o results/$domain/dnsbrute/github.txt -t $token > /dev/null 2>&1
-
-    # Remove duplicates
-    cat results/$domain/dnsbrute/subfinder.txt results/$domain/dnsbrute/assetfinder.txt results/$domain/dnsbrute/crtsh.txt results/$domain/dnsbrute/github.txt results/$domain/dnsbrute/abusedb.txt | sort -u > results/$domain/dnsbrute/subdomains.txt
-    rm results/$domain/dnsbrute/subfinder.txt results/$domain/dnsbrute/assetfinder.txt results/$domain/dnsbrute/crtsh.txt results/$domain/dnsbrute/github.txt results/$domain/dnsbrute/abusedb.txt 
-
-    echo -e "${blue}[!]${NC} Subdomain enumeration completed :))"
+	if [[ -z "${silent}" ]]; then
+	    echo -e "${blue}[!]${NC} Subdomain enumeration completed :))"
+	fi
 }
-
 #=======================================================================
 
 
 
 # Name resolution using ShuffleDNS
-# =======================================================================
-cat results/$domain/dnsbrute/wordlist.txt | sed -e "s/$/.$domain/" > results/$domain/dnsbrute/temp.txt
+#=======================================================================
+#cat results/$domain/wordlist.txt | sed 's/\.domain\.tld//' > results/$domain/temp.txt
 if [ -z "$subdomain" ]; then
-    sub_enumeration
-    cat results/$domain/dnsbrute/subdomains.txt results/$domain/dnsbrute/temp.txt | sort -u > results/$domain/dnsbrute/shuffle_input.txt
+	subdomain_enum
+	cat results/$domain/subdomains.txt | sed 's/\.domain\.tld//' > results/$domain/temp.txt
+	cat results/$domain/temp.txt | anew -q results/$domain/wordlist.txt
 else
-    cat "$subdomain" results/$domain/dnsbrute/temp.txt | sort -u > results/$domain/dnsbrute/shuffle_input.txt
+	cat "$subdomain" | sed 's/\.domain\.tld//' > results/$domain/temp.txt
+	cat results/$domain/temp.txt | anew -q results/$domain/wordlist.txt
 fi
 
-rm results/$domain/dnsbrute/temp.txt
+rm results/$domain/temp.txt
 
-echo
-echo -e "${blue}[!]${NC} Name resolution :"
+if [[ -z "${silent}" ]]; then
+	echo
+	echo -e "${blue}[!]${NC} Name resolution :"
+fi
 
-echo -e "   ${green}[+]${NC} ShuffleDNS"
-shuffledns $massdns -d $domain -list results/$domain/dnsbrute/shuffle_input.txt -silent -r resolvers.txt > results/$domain/dnsbrute/resolved1.txt
-echo -e "${blue}[!]${NC} Name resolution completed :)"
+if [[ -z "${silent}" ]]; then
+	echo -e "   ${green}[+]${NC} ShuffleDNS"
+fi
+if [[ -z "${resolvers}" ]]; then
+	shuffledns -d $domain -w results/$domain/wordlist.txt -silent -r resolvers.txt -o results/$domain/resolved1.txt
+else
+	shuffledns -d $domain -w results/$domain/wordlist.txt -silent -r $resolvers -o results/$domain/resolved1.txt
+fi
+if [[ -z "${silent}" ]]; then
+	echo -e "${blue}[!]${NC} Name resolution completed :)"
+fi
 #=======================================================================
 
 
 # Download and prepare a wordlist for DNSGen
 #=======================================================================
-echo
-echo -e "${blue}[!]${NC} Download and prepare wordlist for DNSGen"
-curl -s https://raw.githubusercontent.com/infosec-au/altdns/master/words.txt > results/$domain/dnsbrute/altwords.txt
-curl -s https://raw.githubusercontent.com/ProjectAnte/dnsgen/master/dnsgen/words.txt > results/$domain/dnsbrute/genwords.txt
-cat results/$domain/dnsbrute/altwords.txt results/$domain/dnsbrute/genwords.txt > results/$domain/dnsbrute/words.txt
-rm results/$domain/dnsbrute/altwords.txt results/$domain/dnsbrute/genwords.txt
+if [[ -z "${silent}" ]]; then
+	echo
+	echo -e "${blue}[!]${NC} Download and prepare wordlist for DNSGen"
+fi
+
+curl -s https://raw.githubusercontent.com/infosec-au/altdns/master/words.txt > results/$domain/altwords.txt
+curl -s https://raw.githubusercontent.com/ProjectAnte/dnsgen/master/dnsgen/words.txt > results/$domain/words.txt
+cat results/$domain/altwords.txt | anew -q results/$domain/words.txt
+rm results/$domain/altwords.txt
 #=======================================================================
 
 
 # Running dnsGen
 #=======================================================================
-echo
-echo -e "${blue}[!]${NC} Generating domain names"
-
-if [ "$include_unresolved_subs" == true ]; then
-    cat results/$domain/dnsbrute/subdomains.txt results/$domain/dnsbrute/resolved1.txt | sort -u > results/$domain/dnsbrute/dnsgen_input.txt
-else
-    mv results/$domain/dnsbrute/resolved1.txt results/$domain/dnsbrute/dnsgen_input.txt
+if [[ -z "${silent}" ]]; then
+	echo
+	echo -e "${blue}[!]${NC} Generating domain names"
 fi
 
-echo -e "   ${green}[+]${NC} DNSGen"
-cat results/$domain/dnsbrute/dnsgen_input.txt | dnsgen -w results/$domain/dnsbrute/words.txt - | shuffledns $massdns -d $domain -r resolvers.txt -silent > results/$domain/dnsbrute/resolved2.txt
-echo -e "${blue}[!]${NC} DNSGen operation completed :)"
+if [ "$include_unresolved_subs" == true ]; then
+	if [ -z "$subdomain" ]; then
+		cat results/$domain/subdomains.txt | anew -q results/$domain/resolved1.txt
+	else
+		cat "$subdomain" | anew -q results/$domain/resolved1.txt
+	fi
+fi
+
+if [[ -z "${silent}" ]]; then
+	echo -e "   ${green}[+]${NC} DNSGen"
+fi
+if [[ -z "${resolvers}" ]]; then
+	cat results/$domain/resolved1.txt | dnsgen -w results/$domain/words.txt - | shuffledns -d $domain -r resolvers.txt -silent -o results/$domain/resolved2.txt
+else
+	cat results/$domain/resolved1.txt | dnsgen -w results/$domain/words.txt - | shuffledns -d $domain -r $resolvers -silent -o results/$domain/resolved2.txt
+fi
+
+if [[ -z "${silent}" ]]; then
+	echo -e "${blue}[!]${NC} DNSGen operation completed :)"
+fi
 #=======================================================================
 
-# Save diff of resolved 1 and 2
-#=======================================================================
-echo
-echo -e "${blue}[!]${NC} Save unique results..."
-comm -2 -3 results/$domain/dnsbrute/resolved2.txt results/$domain/dnsbrute/resolved1.txt | sort -u > results/$domain/dnsbrute/unique_results.txt
 
 # Merging resolved lists
 #=======================================================================
-echo
-echo -e "${blue}[!]${NC} Merging resolved lists ..."
-cat results/$domain/dnsbrute/resolved1.txt results/$domain/dnsbrute/resolved2.txt | sort -u > results/$domain/dnsbrute/final_results.txt
-rm results/$domain/dnsbrute/shuffle_input.txt results/$domain/dnsbrute/dnsgen_input.txt
-echo -e "   ${green}[+]${NC} Everything is finished and the results are saved in ${cyan}results/$domain/dnsbrute/final_results.txt${NC}. Have a good hack :))"
+if [[ -z "${silent}" ]]; then
+	echo
+	echo -e "${blue}[!]${NC} Merging resolved lists ..."
+fi
+if [[ -z "${output}" ]]; then
+	cat results/$domain/resolved1.txt results/$domain/resolved2.txt | sort -u
+else
+	cat results/$domain/resolved1.txt results/$domain/resolved2.txt | sort -u > results/$domain/$output
+	echo -e "${green}[+]${NC} Everything is finished and the results are saved in ${cyan}results/$domain/$output${NC}"
+fi
 #=======================================================================
