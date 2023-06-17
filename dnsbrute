@@ -9,15 +9,20 @@ cyan='\033[0;36m'
 NC='\033[0m'
 
 
-usage() { echo "Usage: ./dnsbrute.sh -d domain.tld [-c subdomain.txt] [-i] [-r resolvers.txt] [-s] [-o output.txt]" 1>&2; exit 1; }
+usage() { 
+	echo "Usage: ./dnsbrute.sh -d domain.tld -w <wordlist.txt> -l <dnsgen-wordlist.txt> [-c subdomain.txt] [-i] [-r resolvers.txt] [-s] [-o output.txt]" 1>&2; 
+	exit 1; 
+}
 
-while getopts "d:c:r:o:si" flag
+while getopts "d:c:r:o:w:l:si" flag
 do
     case "${flag}" in
         d) domain=${OPTARG#*//};;
         c) subdomain="$OPTARG";;
         i) include_unresolved_subs=true;;
         r) resolvers="$OPTARG";;
+        w) wordlist="$OPTARG";;
+        l) dnsgen_wl="$OPTARG";;
         o) output="$OPTARG";;
         s) silent=true;;
         \? ) usage;;
@@ -26,7 +31,7 @@ do
     esac
 done
 
-if [[ -z "${domain}" ]]; then
+if [[ -z "${domain}" || -z "${wordlist}" || -z "${resolvers}" ]]; then
   usage
 fi
 
@@ -117,20 +122,6 @@ else
 fi
 #=======================================================================
 
-
-# Donwload and prepare wordlist
-#=======================================================================
-if [[ -z "${silent}" ]]; then
-	echo
-	echo -e "${blue}[!]${NC} Download and prepare wordlist"
-fi
-curl -s https://wordlists-cdn.assetnote.io/data/manual/best-dns-wordlist.txt > results/$domain/best-dns-wordlist.txt
-curl -s https://wordlists-cdn.assetnote.io/data/manual/2m-subdomains.txt > results/$domain/2m-subdomains.txt
-cat results/$domain/best-dns-wordlist.txt results/$domain/2m-subdomains.txt crunch.txt | sort -u > results/$domain/wordlist.txt
-rm results/$domain/best-dns-wordlist.txt results/$domain/2m-subdomains.txt
-#=======================================================================
-
-
 # Subdomain enumeration
 #=======================================================================
 function subdomain_enum() {
@@ -181,14 +172,13 @@ function subdomain_enum() {
 
 # Name resolution using ShuffleDNS
 #=======================================================================
-#cat results/$domain/wordlist.txt | sed 's/\.domain\.tld//' > results/$domain/temp.txt
 if [ -z "$subdomain" ]; then
 	subdomain_enum
 	cat results/$domain/subdomains.txt | sed 's/\.domain\.tld//' > results/$domain/temp.txt
-	cat results/$domain/temp.txt | anew -q results/$domain/wordlist.txt
+	cat results/$domain/temp.txt $wordlist > results/$domain/wordlist.txt
 else
 	cat "$subdomain" | sed 's/\.domain\.tld//' > results/$domain/temp.txt
-	cat results/$domain/temp.txt | anew -q results/$domain/wordlist.txt
+	cat results/$domain/temp.txt $wordlist > results/$domain/wordlist.txt
 fi
 
 rm results/$domain/temp.txt
@@ -201,28 +191,12 @@ fi
 if [[ -z "${silent}" ]]; then
 	echo -e "   ${green}[+]${NC} ShuffleDNS"
 fi
-if [[ -z "${resolvers}" ]]; then
-	shuffledns -d $domain -w results/$domain/wordlist.txt -silent -r resolvers.txt -o results/$domain/resolved1.txt
-else
-	shuffledns -d $domain -w results/$domain/wordlist.txt -silent -r $resolvers -o results/$domain/resolved1.txt
-fi
+
+shuffledns -d $domain -w results/$domain/wordlist.txt -silent -r $resolvers -o results/$domain/resolved1.txt
+
 if [[ -z "${silent}" ]]; then
 	echo -e "${blue}[!]${NC} Name resolution completed :)"
 fi
-#=======================================================================
-
-
-# Download and prepare a wordlist for DNSGen
-#=======================================================================
-if [[ -z "${silent}" ]]; then
-	echo
-	echo -e "${blue}[!]${NC} Download and prepare wordlist for DNSGen"
-fi
-
-curl -s https://raw.githubusercontent.com/infosec-au/altdns/master/words.txt > results/$domain/altwords.txt
-curl -s https://raw.githubusercontent.com/ProjectAnte/dnsgen/master/dnsgen/words.txt > results/$domain/words.txt
-cat results/$domain/altwords.txt | anew -q results/$domain/words.txt
-rm results/$domain/altwords.txt
 #=======================================================================
 
 
@@ -244,10 +218,10 @@ fi
 if [[ -z "${silent}" ]]; then
 	echo -e "   ${green}[+]${NC} DNSGen"
 fi
-if [[ -z "${resolvers}" ]]; then
-	cat results/$domain/resolved1.txt | dnsgen -w results/$domain/words.txt - | shuffledns -d $domain -r resolvers.txt -silent -o results/$domain/resolved2.txt
+if [[ -z "${dnsgen_wl}" ]]; then
+	cat results/$domain/resolved1.txt | dnsgen - | shuffledns -d $domain -r resolvers.txt -silent -o results/$domain/resolved2.txt
 else
-	cat results/$domain/resolved1.txt | dnsgen -w results/$domain/words.txt - | shuffledns -d $domain -r $resolvers -silent -o results/$domain/resolved2.txt
+	cat results/$domain/resolved1.txt | dnsgen -w $dnsgen_wl - | shuffledns -d $domain -r $resolvers -silent -o results/$domain/resolved2.txt
 fi
 
 if [[ -z "${silent}" ]]; then
