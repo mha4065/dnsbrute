@@ -65,8 +65,8 @@ fi
 
 # Check dnsbrute_results/domain is exist or not
 #=======================================================================
-if [ ! -d "results" ]; then
-    mkdir "results"
+if [ ! -d "dnsbrute_results" ]; then
+    mkdir "dnsbrute_results"
 fi
 if [ ! -d "dnsbrute_results/$domain" ]; then
     mkdir "dnsbrute_results/$domain"
