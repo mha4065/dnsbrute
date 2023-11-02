@@ -10,12 +10,14 @@ NC='\033[0m'
 
 
 usage() { 
-	echo "Usage: dnsbrute -d domain.tld 
+	echo "Usage: ./dnsbrute
+	[-d domain.tld] -> Your domain
 	[-w wordlist.txt] -> Specify a wordlist
 	[-l dnsgen-wordlist.txt] -> Specify a wordlist as DNSGen wordlist
 	[-c subdomain.txt] -> If you have done subdomain enumeration, please enter your subdomains (if you enter subdomains, the script will not do subdomain enumeration)
 	[-i] -> Adding non-resolved subdomains along with resolved subdomains as input to DNSGen
 	[-r resolvers.txt] -> Specify a list of resolvers
+	[-m <massdns path>] -> Path to the massdns binary
 	[-s] -> To run the script in silent mode
 	[-o output.txt] -> To write output to a file instead of the terminal
 	[-h] -> To show help message
@@ -23,7 +25,7 @@ usage() {
 	exit 1; 
 }
 
-while getopts "d:c:r:o:w:l:sih" flag
+while getopts "d:c:r:o:w:l:m:sih" flag
 do
     case "${flag}" in
         d) domain=${OPTARG#*//};;
@@ -32,6 +34,7 @@ do
         r) resolvers="$OPTARG";;
         w) wordlist="$OPTARG";;
         l) dnsgen_wl="$OPTARG";;
+		m) massdns="$OPTARG";;
         o) output="$OPTARG";;
         h) help=true;;
         s) silent=true;;
@@ -55,7 +58,7 @@ if [[ -z "${silent}" ]]; then
 	"
 fi
 
-if $help; then
+if [[ -n "${help}" ]]; then
   usage
 fi
 
@@ -173,7 +176,11 @@ fi
 
 rm dnsbrute_results/$domain/temp.txt
 
-shuffledns -d $domain -w dnsbrute_results/$domain/wordlist.txt -silent -r $resolvers -o dnsbrute_results/$domain/resolved1.txt
+if [ -z "$massdns" ]; then
+	shuffledns -d $domain -w dnsbrute_results/$domain/wordlist.txt -silent -r $resolvers -o dnsbrute_results/$domain/resolved1.txt
+else
+	shuffledns -d $domain -w dnsbrute_results/$domain/wordlist.txt -silent -r $resolvers -o dnsbrute_results/$domain/resolved1.txt -m $massdns
+fi
 #=======================================================================
 
 
@@ -188,9 +195,17 @@ if [ "$include_unresolved_subs" == true ]; then
 fi
 
 if [[ -z "${dnsgen_wl}" ]]; then
-	cat dnsbrute_results/$domain/resolved1.txt | dnsgen - | shuffledns -d $domain -r resolvers.txt -silent -o dnsbrute_results/$domain/resolved2.txt
+	if [ -z "$massdns" ]; then
+		cat dnsbrute_results/$domain/resolved1.txt | dnsgen - | shuffledns -d $domain -r resolvers.txt -silent -o dnsbrute_results/$domain/resolved2.txt
+	else
+		cat dnsbrute_results/$domain/resolved1.txt | dnsgen - | shuffledns -d $domain -r resolvers.txt -silent -o dnsbrute_results/$domain/resolved2.txt -m $massdns
+	fi
 else
-	cat dnsbrute_results/$domain/resolved1.txt | dnsgen -w $dnsgen_wl - | shuffledns -d $domain -r $resolvers -silent -o dnsbrute_results/$domain/resolved2.txt
+	if [ -z "$massdns" ]; then
+		cat dnsbrute_results/$domain/resolved1.txt | dnsgen -w $dnsgen_wl - | shuffledns -d $domain -r $resolvers -silent -o dnsbrute_results/$domain/resolved2.txt
+	else
+		cat dnsbrute_results/$domain/resolved1.txt | dnsgen -w $dnsgen_wl - | shuffledns -d $domain -r $resolvers -silent -o dnsbrute_results/$domain/resolved2.txt -m $massdns
+	fi
 fi
 #=======================================================================
 

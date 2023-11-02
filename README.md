@@ -26,15 +26,16 @@ DNSBrute is a powerful Bash script to brute force DNS and obtain hidden subdomai
 ## Usage
 
 ### Basic Usage
-`dnsbrute -d domain.tld -w wordlist -r ~/.resolvers`
+`./dnsbrute -d domain.tld -w wordlist -r ~/.resolvers`
 
 ### Tool Options
 - `-d` : Target domain.tld
 - `-w` : Specify a wordlist
-- `-r` : Specify a list of resolvers
-- `-i` : Adding non-resolved subdomains along with resolved subdomains as input to DNSGen
-- `-c` : If you have done subdomain enumeration, please enter your subdomains (if you enter subdomains, the script will not do subdomain enumeration)
 - `-l` : Specify a wordlist as DNSGen wordlist
+- `-c` : If you have done subdomain enumeration, please enter your subdomains (if you enter subdomains, the script will not do subdomain enumeration)
+- `-i` : Adding non-resolved subdomains along with resolved subdomains as input to DNSGen
+- `-r` : Specify a list of resolvers
+- `-m` : Path to the massdns binary
 - `-s` : To run the script in silent mode
 - `-o` : To write output to a file instead of the terminal
 - `-h` : To show help message
